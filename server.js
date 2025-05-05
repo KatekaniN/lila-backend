@@ -5,6 +5,7 @@ import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
+import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 // Setup environment variables
@@ -23,6 +24,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
+
+app.use(express.static('./'));
+
 
 // Initialize API clients
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
@@ -273,8 +277,3 @@ app.post('/api/generate', authenticateUser, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-// Helper function for __dirname in ES modules
-function dirname(path) {
-  return new URL('.', path).pathname;
-}
