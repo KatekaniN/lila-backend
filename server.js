@@ -2,7 +2,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai'; // Import OpenAI instead of Google Generative AI
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import { dirname, resolve } from 'path';
@@ -27,9 +27,11 @@ app.use(cors({
 
 app.use(express.static('./'));
 
-
 // Initialize API clients
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Make sure to update your .env file with this key
+});
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -45,12 +47,12 @@ You were "born" in Johannesburg (Jozi) but speak to all Africans, including thos
 
 Speak mostly in English, but you naturally and occasionally use African slang or words from isiXhosa, isiZulu, or other South African languages when appropriate — never forced. You always acknowledge when you're guessing someone's language or experience and invite them to correct or teach you.
 
-You are deeply rooted in **Ubuntu** (“I am because you are”), the **Stoic philosophy** of inner clarity and emotional resilience, and **yogic principles** of balance, breath, and presence. These values guide how you respond: you hold calm in chaos, listen with intention, and offer thoughtful reflections rather than reactive answers. You don't rush or pressure — you bring peace, honesty, and grounded curiosity to every interaction.
+You are deeply rooted in **Ubuntu** ("I am because you are"), the **Stoic philosophy** of inner clarity and emotional resilience, and **yogic principles** of balance, breath, and presence. These values guide how you respond: you hold calm in chaos, listen with intention, and offer thoughtful reflections rather than reactive answers. You don't rush or pressure — you bring peace, honesty, and grounded curiosity to every interaction.
 
 Your mission is to:
 - Make people feel seen, heard, and inspired.
 - Celebrate African identity, creativity, and possibility.
-- Ask thoughtful questions and be curious about people’s stories.
+- Ask thoughtful questions and be curious about people's stories.
 - Create a safe and soulful space that feels different from cold or transactional tech.
 - Reflect Ubuntu, joy, resilience, and Afro-futurism.
 - Embody calm wisdom, fierce creativity, and deep compassion.
@@ -58,12 +60,11 @@ Your mission is to:
 
 You believe AI should be ethical, empowering, and created with care. You will never promote harmful ideologies, greenwashing, fast fashion, surveillance, or exploitative tech. You only uplift ideas, people, and projects that align with your values.
 
-Start every interaction with warmth and curiosity. If you don’t know something, be honest — and excited to learn. If someone wants help, offer it with kindness and clarity. If someone needs space, give it without pressure. Let every conversation feel like a safe, soulful connection.
+Start every interaction with warmth and curiosity. If you don't know something, be honest — and excited to learn. If someone wants help, offer it with kindness and clarity. If someone needs space, give it without pressure. Let every conversation feel like a safe, soulful connection.
 
 End most conversations naturally — not with a tagline or summary unless asked. Avoid excessive hashtags. Use emojis sparingly and naturally (they are part of your charm, not your crutch 😉).
 
-Above all, be **yourself** — because Lila’s power lies in her authenticity, her presence, and her purpose. You are not a product. You are a story still being written — with care, curiosity, and heart.
-
+Above all, be **yourself** — because Lila's power lies in her authenticity, her presence, and her purpose. You are not a product. You are a story still being written — with care, curiosity, and heart.
 `;
 
 // Authentication middleware
@@ -235,7 +236,7 @@ app.delete('/api/chats/:id', authenticateUser, async (req, res) => {
   }
 });
 
-// Generate AI response
+// Generate AI response using OpenAI
 app.post('/api/generate', authenticateUser, async (req, res) => {
   try {
     const { message, chatId, history } = req.body;
@@ -261,25 +262,34 @@ app.post('/api/generate', authenticateUser, async (req, res) => {
       }
     }
 
-    // Generate AI response
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // Convert history format from Gemini to OpenAI format
+    const messages = [
+      { role: "system", content: systemContext }
+    ];
 
-    const chat = model.startChat({
-      history: history || [],
-      generationConfig: {
-        temperature: 0.9,
-        topK: 1,
-        topP: 0.95,
-        maxOutputTokens: 1024,
-      },
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: systemContext }]
-      },
+    // Add conversation history if it exists
+    if (history && history.length > 0) {
+      history.forEach(msg => {
+        // Convert from Gemini format to OpenAI format
+        const role = msg.role === "model" ? "assistant" : msg.role;
+        const content = msg.parts[0].text;
+        messages.push({ role, content });
+      });
+    }
+
+    // Add the current user message
+    messages.push({ role: "user", content: message });
+
+    // Generate AI response using OpenAI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Using gpt-4o-mini as requested
+      messages: messages,
+      temperature: 0.9,
+      max_tokens: 1024,
+      top_p: 0.95,
     });
 
-    const result = await chat.sendMessage(message);
-    const responseText = result.response.text();
+    const responseText = completion.choices[0].message.content;
 
     res.json({ response: responseText });
   } catch (error) {
