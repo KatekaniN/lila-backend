@@ -282,7 +282,7 @@ app.post('/api/generate', authenticateUser, async (req, res) => {
 
     // Generate AI response using OpenAI
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using gpt-4o-mini as requested
+      model: "gpt-4o",
       messages: messages,
       temperature: 0.9,
       max_tokens: 1024,
@@ -301,7 +301,6 @@ app.post('/api/generate', authenticateUser, async (req, res) => {
   }
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
